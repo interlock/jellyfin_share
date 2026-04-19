@@ -17,6 +17,15 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
+      - name: Sync version from GITHUB_REF
+        run: |
+          REF="${GITHUB_REF#refs/tags/}"
+          VERSION="${REF#v}"
+          echo "Syncing csproj to version: $VERSION"
+          sed -i 's|<Version>[^<]*</Version>|<Version>'"$VERSION"'</Version>|g' src/JellyfinMediaShare.csproj
+          sed -i 's|<AssemblyVersion>[^<]*</AssemblyVersion>|<AssemblyVersion>'"$VERSION"'.0</AssemblyVersion>|g' src/JellyfinMediaShare.csproj
+          sed -i 's|<FileVersion>[^<]*</FileVersion>|<FileVersion>'"$VERSION"'.0</FileVersion>|g' src/JellyfinMediaShare.csproj
+
       - name: Build Jellyfin Plugin
         uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d # v1.1.1
         id: jprm

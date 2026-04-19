@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="#1a1a2e"/>
+  <rect x="720" y="340" width="480" height="400" rx="40" fill="#16213e"/>
+  <circle cx="960" cy="540" r="120" fill="#0f3460"/>
+  <polygon points="920,490 920,590 1000,540" fill="#e94560"/>
+  <text x="960" y="800" font-family="Arial,sans-serif" font-size="48" fill="#e94560" text-anchor="middle">Media Share</text>
+</svg>

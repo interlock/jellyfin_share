@@ -53,3 +53,4 @@ src/
 - Handle range requests properly in StreamController
 - Add server URL auto-detection (don't hardcode localhost:8096)
 - Add plugin versioning + manifest
+- Address security review issues

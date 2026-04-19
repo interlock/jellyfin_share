@@ -1,6 +1,6 @@
 name: "MediaShare"
-guid: "a2b2a7ed-aa28-4521-a64a-63d86901f246"
-imageUrl: https://
+guid: "613657e0-25b9-4d58-9f4d-1496726b0532"
+imageUrl: https://raw.githubusercontent.com/interlock/jellyfin_share/main/mediashare.svg
 version: 1
 targetAbi: "10.11.0.0"
 framework: "net9.0"
