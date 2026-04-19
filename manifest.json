@@ -1,45 +1,43 @@
-{
-  "plugins": [
-    {
-      "name": "Media Share",
-      "description": "Share media libraries with friends across Jellyfin servers using invite links and .strm file streaming.",
-      "owner": "interlock",
-      "category": "general",
-      "guid": "613657e0-25b9-4d58-9f4d-1496726b0532",
-      "versions": [
-        {
-          "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.19...0.0.20",
-          "targetAbi": "10.11.0.0",
-          "version": "0.0.20.0",
-          "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.20/mediashare_1.0.0.0.zip",
-          "checksum": "3fd1bb6ef186c5c1abd6e3678eb68ae5",
-          "timestamp": "2026-04-19T16:58:16Z"
-        },
-        {
-          "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.18...0.0.19",
-          "targetAbi": "10.11.0.0",
-          "version": "0.0.19.0",
-          "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.19/mediashare_1.0.0.0.zip",
-          "checksum": "b20e9161ae7cfdf19c888df424cc351d",
-          "timestamp": "2026-04-19T16:56:15Z"
-        },
-        {
-          "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.17...0.0.18",
-          "targetAbi": "10.11.0.0",
-          "version": "0.0.18.0",
-          "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.18/mediashare_1.0.0.0.zip",
-          "checksum": "924233c8266398d242a856b2dd12e631",
-          "timestamp": "2026-04-19T16:53:14Z"
-        },
-        {
-          "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.16...0.0.17",
-          "targetAbi": "10.11.0.0",
-          "version": "0.0.17.0",
-          "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.17/mediashare_1.0.0.0.zip",
-          "checksum": "539c3940366899e5cb9ad42cec048fbf",
-          "timestamp": "2026-04-19T16:43:18Z"
-        }
-      ]
-    }
-  ]
-}
+[
+  {
+    "name": "Media Share",
+    "description": "Share media libraries with friends across Jellyfin servers using invite links and .strm file streaming.",
+    "owner": "interlock",
+    "category": "General",
+    "guid": "613657e0-25b9-4d58-9f4d-1496726b0532",
+    "versions": [
+      {
+        "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.19...0.0.20",
+        "targetAbi": "10.11.0.0",
+        "version": "0.0.20.0",
+        "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.20/mediashare_1.0.0.0.zip",
+        "checksum": "3fd1bb6ef186c5c1abd6e3678eb68ae5",
+        "timestamp": "2026-04-19T16:58:16Z"
+      },
+      {
+        "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.18...0.0.19",
+        "targetAbi": "10.11.0.0",
+        "version": "0.0.19.0",
+        "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.19/mediashare_1.0.0.0.zip",
+        "checksum": "b20e9161ae7cfdf19c888df424cc351d",
+        "timestamp": "2026-04-19T16:56:15Z"
+      },
+      {
+        "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.17...0.0.18",
+        "targetAbi": "10.11.0.0",
+        "version": "0.0.18.0",
+        "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.18/mediashare_1.0.0.0.zip",
+        "checksum": "924233c8266398d242a856b2dd12e631",
+        "timestamp": "2026-04-19T16:53:14Z"
+      },
+      {
+        "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.16...0.0.17",
+        "targetAbi": "10.11.0.0",
+        "version": "0.0.17.0",
+        "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.17/mediashare_1.0.0.0.zip",
+        "checksum": "539c3940366899e5cb9ad42cec048fbf",
+        "timestamp": "2026-04-19T16:43:18Z"
+      }
+    ]
+  }
+]

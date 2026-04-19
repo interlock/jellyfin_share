@@ -33,7 +33,6 @@ jobs:
         with:
           dotnet-target: 'net9.0'
           path: ./src
-          version: ${{ env.GITHUB_REF }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -120,7 +119,7 @@ jobs:
           with open("manifest.json") as f:
               manifest = json.load(f)
 
-          plugin = manifest["plugins"][0]
+          plugin = manifest[0]
           if plugin.get("versions") is None:
               plugin["versions"] = []
           plugin["versions"].append(entry)
