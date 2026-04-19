@@ -7,6 +7,14 @@
     "guid": "613657e0-25b9-4d58-9f4d-1496726b0532",
     "versions": [
       {
+        "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.22...0.0.23",
+        "targetAbi": "10.11.0.0",
+        "version": "0.0.23.0",
+        "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.23/mediashare_1.0.0.0.zip",
+        "checksum": "ebe2fcc5a610e87a2742b5194e2e439f",
+        "timestamp": "2026-04-19T22:36:40Z"
+      },
+      {
         "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.19...0.0.20",
         "targetAbi": "10.11.0.0",
         "version": "0.0.20.0",
