@@ -13,10 +13,10 @@ test: build
 	$(DOTNET) test $(TEST_DIR)/JellyfinMediaShare.Tests.csproj -c Release --logger "console;verbosity=normal"
 
 publish:
-	$(DOTNET) publish $(SRC_DIR)/JellyfinMediaShare.csproj -c Release -o $(PUBLISH_DIR)
+	$(DOTNET) publish $(SRC_DIR)/$(SRC_DIR).csproj -c Release -o $(PUBLISH_DIR)
 
 clean:
-	$(DOTNET) clean $(SRC_DIR)/JellyfinMediaShare.csproj -c Release
+	$(DOTNET) clean $(SRC_DIR)/$(SRC_DIR).csproj -c Release
 	rm -rf $(SRC_DIR)/bin $(SRC_DIR)/obj $(PUBLISH_DIR)
 
 # Install built plugin to local Jellyfin plugin folder

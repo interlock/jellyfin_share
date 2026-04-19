@@ -25,14 +25,23 @@ jobs:
           sed -i 's|<Version>[^<]*</Version>|<Version>'"$VERSION"'</Version>|g' Jellyfin.Plugin.MediaShare/Jellyfin.Plugin.MediaShare.csproj
           sed -i 's|<AssemblyVersion>[^<]*</AssemblyVersion>|<AssemblyVersion>'"$VERSION"'.0</AssemblyVersion>|g' Jellyfin.Plugin.MediaShare/Jellyfin.Plugin.MediaShare.csproj
           sed -i 's|<FileVersion>[^<]*</FileVersion>|<FileVersion>'"$VERSION"'.0</FileVersion>|g' Jellyfin.Plugin.MediaShare/Jellyfin.Plugin.MediaShare.csproj
-          
-          
+
       - name: Build Jellyfin Plugin
-        uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d # v1.1.1
-        id: jprm
-        with:
-          dotnet-target: 'net9.0'
-          path: ./Jellyfin.Plugin.MediaShare
+        id: build
+        run: |
+          REF="${GITHUB_REF#refs/tags/}"
+          VERSION="${REF#v}"
+
+          dotnet publish Jellyfin.Plugin.MediaShare/Jellyfin.Plugin.MediaShare.csproj \
+            --configuration Release \
+            --framework net9.0 \
+            -p:Version="${VERSION}" \
+            -o artifacts/publish
+
+          cd artifacts/publish
+          zip -r ../Jellyfin.Plugin.MediaShare_"${VERSION}".zip .
+          echo "artifact_name=Jellyfin.Plugin.MediaShare_${VERSION}.zip" >> $GITHUB_OUTPUT
+          cd ../..
 
       - name: Upload Artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -40,11 +49,12 @@ jobs:
           name: build-artifact
           retention-days: 30
           if-no-files-found: error
-          path: ${{ steps.jprm.outputs.artifact }}
+          path: artifacts/*.zip
+
       - name: Upload release
         uses: softprops/action-gh-release@v3
         with:
-          files: ./artifacts/*
+          files: artifacts/${{ steps.build.outputs.artifact_name }}
           name: ${{ env.GITHUB_REF }}
         
 
@@ -63,38 +73,21 @@ jobs:
           name: build-artifact
           path: artifact
 
-      - name: Sync version from GITHUB_REF
-        run: |
-          REF="${GITHUB_REF#refs/tags/}"
-          VERSION="${REF#v}"
-          echo "Syncing csproj to version: $VERSION"
-          sed -i 's|<Version>[^<]*</Version>|<Version>'"$VERSION"'</Version>|g' Jellyfin.Plugin.MediaShare/Jellyfin.Plugin.MediaShare.csproj
-          sed -i 's|<AssemblyVersion>[^<]*</AssemblyVersion>|<AssemblyVersion>'"$VERSION"'.0</AssemblyVersion>|g' Jellyfin.Plugin.MediaShare/Jellyfin.Plugin.MediaShare.csproj
-          sed -i 's|<FileVersion>[^<]*</FileVersion>|<FileVersion>'"$VERSION"'.0</FileVersion>|g' Jellyfin.Plugin.MediaShare/Jellyfin.Plugin.MediaShare.csproj
-
-
-      - name: Read version from csproj
-        id: version
-        run: |
-          VERSION=$(grep -oP '<Version>\K[^<]+' Jellyfin.Plugin.MediaShare/Jellyfin.Plugin.MediaShare.csproj)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "version=$VERSION"
-
       - name: Compute checksum
         id: checksum
         run: |
-          CHECKSUM=$(md5sum artifact/*.zip | awk '{print $1}')
-          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
-          echo "checksum=$CHECKSUM"
+          ARTIFACT=$(ls artifact/*.zip | xargs basename)
+          echo "artifact=${ARTIFACT}" >> $GITHUB_OUTPUT
+          CHECKSUM=$(md5sum "artifact/${ARTIFACT}" | awk '{print $1}')
+          echo "checksum=${CHECKSUM}" >> $GITHUB_OUTPUT
 
       - name: Update manifest.json
         env:
-          PLUGIN_VERSION: ${{ env.GITHUB_REF || steps.version.outputs.version }}
+          PLUGIN_VERSION: ${{ github.ref_name }}
           CHANGELOG: ${{ inputs.changelog || github.event.release.body || 'Automated release' }}
           CHECKSUM: ${{ steps.checksum.outputs.checksum }}
-          SOURCE_URL: https://github.com/${{ github.repository }}/releases/download/${{ env.GITHUB_REF || steps.version.outputs.version }}/__artifact__
+          ARTIFACT: ${{ steps.checksum.outputs.artifact }}
         run: |
-          ARTIFACT=$(ls artifact/*.zip | xargs basename)
           SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${PLUGIN_VERSION}/${ARTIFACT}"
 
           python3 << 'PYEOF'
@@ -108,7 +101,7 @@ jobs:
           entry = {
               "changelog":  changelog,
               "targetAbi":  "10.11.0.0",
-              "version":    plugin_ver + ".0",
+              "version":    plugin_ver,
               "sourceUrl":  source_url,
               "checksum":   checksum,
               "timestamp": subprocess.check_output(

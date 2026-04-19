@@ -21,7 +21,10 @@
       "Bash(grep \"BasePlugin\\\\`1\\\\.\" ~/.nuget/packages/jellyfin.common/10.11.8/lib/net9.0/MediaBrowser.Common.xml)",
       "Bash(~/.dotnet/dotnet test *)",
       "Bash(make jellyfin plugin repository manifest filejellyfin plugin repository manifest file*)",
-      "Bash(/home/junesapara/.dotnet/dotnet build *)"
+      "Bash(/home/junesapara/.dotnet/dotnet build *)",
+      "Bash(python3 -c ' *)",
+      "Bash(/home/junesapara/.dotnet/dotnet publish *)",
+      "WebFetch(domain:api.github.com)"
     ]
   }
 }
