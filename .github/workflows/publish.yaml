@@ -4,34 +4,6 @@ on:
   release:
     types:
       - released
-  workflow_call:
-    inputs:
-      version:
-        required: true
-        type: string
-        description: "Plugin version to publish (e.g. 1.0.0)"
-        default: ${{ env.GITHUB_REF }}
-      changelog:
-        required: false
-        type: string
-        default: ""
-        description: "Changelog / release notes for this version"
-      dotnet-version:
-        required: false
-        type: string
-        default: "9.0.x"
-        description: ".NET version for the build"
-      dotnet-target:
-        required: false
-        type: string
-        default: "net9.0"
-        description: ".NET target framework"
-  workflow_dispatch:
-    inputs:
-      changelog:
-        required: false
-        type: string
-        default: ""
 
 jobs:
   build:
@@ -43,13 +15,13 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
-          dotnet-version: ${{ inputs.dotnet-version || '9.0.x' }}
+          dotnet-version: '9.0.x'
 
       - name: Build Jellyfin Plugin
         uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d # v1.1.1
         id: jprm
         with:
-          dotnet-target: ${{ inputs.dotnet-target || 'net9.0' }}
+          dotnet-target: 'net9.0'
           path: ./src
 
       - name: Upload Artifact
@@ -97,7 +69,7 @@ jobs:
 
       - name: Update manifest.json
         env:
-          PLUGIN_VERSION: ${{ inputs.version || steps.version.outputs.version }}
+          PLUGIN_VERSION: ${{ env.GITHUB_REF || steps.version.outputs.version }}
           CHANGELOG: ${{ inputs.changelog || github.event.release.body || 'Automated release' }}
           CHECKSUM: ${{ steps.checksum.outputs.checksum }}
           SOURCE_URL: https://github.com/${{ github.repository }}/releases/download/${{ inputs.version || steps.version.outputs.version }}/__artifact__
