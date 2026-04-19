@@ -139,4 +139,4 @@ jobs:
         with:
           commit_message: "chore(manifest): add version ${{ inputs.version || steps.version.outputs.version }}"
           file_pattern: manifest.json
-          skip_dirty: false
+          skip_dirty_check: false
