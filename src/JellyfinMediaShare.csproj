@@ -5,6 +5,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>12</LangVersion>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Authors>interlock</Authors>
+    <Description>Share media libraries with friends across Jellyfin servers using invite links and .strm files.</Description>
+    <RepositoryUrl>git@github.com:interlock/jellyfin_share.git</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>

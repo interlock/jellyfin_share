@@ -1,6 +1,9 @@
 # .NET
 bin/
 obj/
+publish/
+src/publish/
+dist/
 *.dll
 *.pdb
 *.user
@@ -8,6 +11,7 @@ obj/
 *.cache
 *.log
 *.tmp
+*.deps.json
 
 # IDE / Editor
 .idea/

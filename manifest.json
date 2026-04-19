@@ -1,0 +1,12 @@
+{
+  "plugins": [
+    {
+      "name": "Media Share",
+      "description": "Share media libraries with friends across Jellyfin servers using invite links and .strm file streaming.",
+      "owner": "interlock",
+      "category": "general",
+      "guid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "versions": {}
+    }
+  ]
+}
