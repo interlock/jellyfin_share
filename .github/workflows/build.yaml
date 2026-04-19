@@ -1,13 +1,6 @@
 on:
   workflow_call:
     inputs:
-      version:
-        required: true
-        type: string
-      is-unstable:
-        required: false
-        default: false
-        type: boolean
       dotnet-version:
         required: false
         default: "9.0.x"
@@ -18,8 +11,6 @@ on:
         default: "net9.0"
         description: "The .NET target to set for JPRM"
         type: string
-   
-
 
 jobs:
   build:
@@ -38,13 +29,12 @@ jobs:
         id: jprm
         with:
           dotnet-target: "${{ inputs.dotnet-target }}"
+          path: ./src
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: build-artifact
           retention-days: 30
           if-no-files-found: error
           path: ${{ steps.jprm.outputs.artifact }}
-
-  
