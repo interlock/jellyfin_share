@@ -62,6 +62,16 @@ jobs:
           name: build-artifact
           path: artifact
 
+      - name: Sync version from GITHUB_REF
+        run: |
+          REF="${GITHUB_REF#refs/tags/}"
+          VERSION="${REF#v}"
+          echo "Syncing csproj to version: $VERSION"
+          sed -i 's|<Version>[^<]*</Version>|<Version>'"$VERSION"'</Version>|g' src/JellyfinMediaShare.csproj
+          sed -i 's|<AssemblyVersion>[^<]*</AssemblyVersion>|<AssemblyVersion>'"$VERSION"'.0</AssemblyVersion>|g' src/JellyfinMediaShare.csproj
+          sed -i 's|<FileVersion>[^<]*</FileVersion>|<FileVersion>'"$VERSION"'.0</FileVersion>|g' src/JellyfinMediaShare.csproj
+
+
       - name: Read version from csproj
         id: version
         run: |
@@ -81,7 +91,7 @@ jobs:
           PLUGIN_VERSION: ${{ env.GITHUB_REF || steps.version.outputs.version }}
           CHANGELOG: ${{ inputs.changelog || github.event.release.body || 'Automated release' }}
           CHECKSUM: ${{ steps.checksum.outputs.checksum }}
-          SOURCE_URL: https://github.com/${{ github.repository }}/releases/download/${{ inputs.version || steps.version.outputs.version }}/__artifact__
+          SOURCE_URL: https://github.com/${{ github.repository }}/releases/download/${{ GITHUB_REF || steps.version.outputs.version }}/__artifact__
         run: |
           ARTIFACT=$(ls artifact/*.zip | xargs basename)
           SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${PLUGIN_VERSION}/${ARTIFACT}"
@@ -127,6 +137,6 @@ jobs:
       - name: Commit manifest update
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
-          commit_message: "chore(manifest): add version ${{ inputs.version || steps.version.outputs.version }}"
+          commit_message: "chore(manifest): add version ${{ env.GITHUB_REF || steps.version.outputs.version }}"
           file_pattern: manifest.json
           skip_dirty_check: false
