@@ -15,7 +15,7 @@ on:
         type: boolean
       default-branch:
         required: false
-        default: "master"
+        default: "main"
         description: "The branch to commit the version bump to"
         type: string
       commiter-name:
@@ -33,7 +33,6 @@ on:
 jobs:
   bump-version:
     runs-on: ubuntu-latest
-    if: ${{ ! inputs.isUnstable }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
