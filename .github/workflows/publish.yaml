@@ -104,38 +104,38 @@ jobs:
 
           python3 << 'PYEOF'
           import json, os, subprocess
-          changelog = os.environ.get("CHANGELOG", "").strip() or "Automated release"
-          checksum  = os.environ["CHECKSUM"]
-          source_url = os.environ["SOURCE_URL"]
-          plugin_ver = os.environ["PLUGIN_VERSION"]
 
-          # strip leading 'v' if present (e.g. v1.2.3 -> 1.2.3)
-          plugin_ver = plugin_ver.lstrip("v")
-          abi_ver    = "10.11.0.0"
-          timestamp  = subprocess.check_output(["date", "-u", "+%Y-%m-%dT%H:%M:%SZ"]).decode().strip()
+          changelog  = os.environ.get("CHANGELOG", "").strip() or "Automated release"
+          checksum   = os.environ["CHECKSUM"]
+          source_url = os.environ["SOURCE_URL"]
+          plugin_ver = os.environ["PLUGIN_VERSION"].lstrip("v")
 
           entry = {
-              "changelog":   changelog,
-              "targetAbi":   abi_ver,
-              "version":     plugin_ver + ".0",
-              "sourceUrl":   source_url,
-              "checksum":    checksum,
-              "timestamp":   timestamp,
+              "changelog":  changelog,
+              "targetAbi":  "10.11.0.0",
+              "version":    plugin_ver + ".0",
+              "sourceUrl":  source_url,
+              "checksum":   checksum,
+              "timestamp": subprocess.check_output(
+                  ["date", "-u", "+%Y-%m-%dT%H:%M:%SZ"]
+              ).decode().strip(),
           }
 
-          with open("manifest.json", "r+") as f:
+          with open("manifest.json") as f:
               manifest = json.load(f)
-              plugin = manifest["plugins"][0]
-              # Remove existing entry for this version (idempotent on re-run)
-              plugin["versions"] = [
-                  v for v in plugin.get("versions", [])
-                  if v.get("version") != entry["version"]
-              ]
-              plugin["versions"].append(entry)
-              plugin["versions"].sort(key=lambda v: [int(x) for x in v["version"].split(".")])
-              f.seek(0)
+
+          plugin = manifest["plugins"][0]
+          if plugin.get("versions") is None:
+              plugin["versions"] = []
+          plugin["versions"].append(entry)
+          # keep newest first
+          plugin["versions"].sort(
+              key=lambda v: [int(x) for x in v["version"].split(".")],
+              reverse=True,
+          )
+
+          with open("manifest.json", "w") as f:
               json.dump(manifest, f, indent=2)
-              f.truncate()
 
           print(json.dumps(entry, indent=2))
           PYEOF
