@@ -61,6 +61,9 @@ jobs:
           path: ${{ steps.jprm.outputs.artifact }}
       - name: Upload release
         uses: softprops/action-gh-release@v3
+        with:
+          working_directory: ./artifacts
+          name: $GIT_REF
         
 
   manifest:
