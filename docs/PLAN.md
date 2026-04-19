@@ -18,8 +18,8 @@ Cross-server library sharing via invite links. Based on `.strm` + `.nfo` federat
 
 ### Key Files
 ```
-src/
-├── JellyfinMediaShare.csproj
+Jellyfin.Plugin.MediaShare/
+├── Jellyfin.Plugin.MediaShare.csproj
 ├── SharePlugin.cs                      # Plugin entry (BasePlugin + IHasWebPages)
 ├── Configuration/
 │   ├── PluginConfiguration.cs          # Serialized plugin config

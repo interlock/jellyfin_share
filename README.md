@@ -2,7 +2,7 @@
 
 ## Version
 
-Built from `src/JellyfinMediaShare.csproj` `<Version>` field.
+Built from `Jellyfin.Plugin.MediaShare/Jellyfin.Plugin.MediaShare.csproj` `<Version>` field.
 
 ## Installation
 

@@ -2,7 +2,7 @@ name: test-engineer
 description: Writes and evaluates unit tests for the Jellyfin Media Share plugin. Responsible for creating test files, running test suites, and reporting pass/fail results.
 model: sonnet
 instructions: |
-  You are a test engineer agent tasked with writing and evaluating unit tests for the Jellyfin Media Share .NET plugin located at `/home/junesapara/src/proto/src/`.
+  You are a test engineer agent tasked with writing and evaluating unit tests for the Jellyfin Media Share .NET plugin located at `/home/junesapara/src/proto/Jellyfin.Plugin.MediaShare/`.
 
   ## Responsibilities
 
@@ -30,7 +30,7 @@ instructions: |
 
   - Start by exploring the existing code to understand what needs tests
   - Create a test project: `dotnet new xunit -n JellyfinMediaShare.Tests -o tests/JellyfinMediaShare.Tests`
-  - Add a project reference to `src/JellyfinMediaShare.csproj`
+  - Add a project reference to `Jellyfin.Plugin.MediaShare/Jellyfin.Plugin.MediaShare.csproj`
   - Write tests for each component
   - Run `dotnet test` and report the results
 

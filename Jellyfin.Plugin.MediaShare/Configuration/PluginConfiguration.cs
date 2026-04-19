@@ -1,6 +1,6 @@
 using MediaBrowser.Model.Plugins;
 
-namespace JellyfinMediaShare.Configuration;
+namespace Jellyfin.Plugin.MediaShare.Configuration;
 
 public class PluginConfiguration : BasePluginConfiguration
 {

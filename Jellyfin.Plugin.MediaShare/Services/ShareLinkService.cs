@@ -1,7 +1,7 @@
-using JellyfinMediaShare.Data;
-using JellyfinMediaShare.Models;
+using Jellyfin.Plugin.MediaShare.Data;
+using Jellyfin.Plugin.MediaShare.Models;
 
-namespace JellyfinMediaShare.Services;
+namespace Jellyfin.Plugin.MediaShare.Services;
 
 public class ShareLinkService(ShareDbContext db, string serverUrl)
 {

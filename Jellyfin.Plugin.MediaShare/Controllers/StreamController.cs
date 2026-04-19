@@ -1,9 +1,9 @@
 using System.Net.Http.Headers;
-using JellyfinMediaShare.Services;
+using Jellyfin.Plugin.MediaShare.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
-namespace JellyfinMediaShare.Controllers;
+namespace Jellyfin.Plugin.MediaShare.Controllers;
 
 [ApiController]
 [Route("mediashare")]
@@ -12,7 +12,7 @@ public class StreamController(
     IHttpClientFactory httpClientFactory,
     ILogger<StreamController> logger) : ControllerBase
 {
-    private readonly HttpClient _http = httpClientFactory.CreateClient("JellyfinMediaShare");
+    private readonly HttpClient _http = httpClientFactory.CreateClient("Jellyfin.Plugin.MediaShare");
 
     [HttpGet("stream/{linkId}/{fileId}")]
     public async Task<IActionResult> Stream(string linkId, string fileId)

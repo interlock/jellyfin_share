@@ -1,6 +1,6 @@
-using JellyfinMediaShare.Models;
+using Jellyfin.Plugin.MediaShare.Models;
 
-namespace JellyfinMediaShare.Tests;
+namespace Jellyfin.Plugin.MediaShare.Tests;
 
 public class SharedLibraryModelTests
 {

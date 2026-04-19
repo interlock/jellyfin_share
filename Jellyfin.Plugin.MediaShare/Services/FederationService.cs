@@ -1,11 +1,13 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using JellyfinMediaShare.Data;
-using JellyfinMediaShare.Models;
+using Jellyfin.Plugin.MediaShare.Data;
+using Jellyfin.Plugin.MediaShare.Models;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace JellyfinMediaShare.Services;
+namespace Jellyfin.Plugin.MediaShare.Services;
 
 public class FederationService(
     ShareDbContext db,
@@ -13,7 +15,7 @@ public class FederationService(
     IHttpClientFactory httpClientFactory,
     ILogger<FederationService> logger)
 {
-    private readonly HttpClient _http = httpClientFactory.CreateClient("JellyfinMediaShare");
+    private readonly HttpClient _http = httpClientFactory.CreateClient("Jellyfin.Plugin.MediaShare");
 
     public async Task SyncIncomingShareAsync(string peerServerUrl, string shareLinkId)
     {
@@ -36,7 +38,9 @@ public class FederationService(
                 db.Libraries.Update(existing);
             }
 
-            await GenerateStrmFilesAsync(shareLinkId, items);
+            GenerateStrmFiles(shareLinkId, items);
+            libraryManager.CreateShortcut(GetShareRoot(shareLinkId), new MediaPathInfo());
+            libraryManager.QueueLibraryScan();
             logger.LogInformation("Synced {Count} items from peer {Url}", items.Count, peerServerUrl);
         }
         catch (Exception ex)
@@ -91,37 +95,98 @@ public class FederationService(
         };
     }
 
-    private async Task GenerateStrmFilesAsync(string shareLinkId, List<MediaItem> items)
+    public List<MediaItem> BuildCatalogFromLibrary(string libraryId)
     {
-        var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JellyfinMediaShare", "shared", shareLinkId);
+        if (!Guid.TryParse(libraryId, out var guid))
+        {
+            logger.LogWarning("Invalid library ID format (expected GUID): {LibraryId}", libraryId);
+            return [];
+        }
+
+        var folder = libraryManager.GetItemById(guid) as IMetadataFolder;
+        if (folder is null)
+        {
+            logger.LogWarning("Library not found or not a folder: {LibraryId}", libraryId);
+            return [];
+        }
+
+        return BuildItemsRecursive(folder, new());
+    }
+
+    private List<MediaItem> BuildItemsRecursive<T>(T parent, List<MediaItem> catalog)
+        where T : BaseItem, IMetadataFolder
+    {
+        var children = libraryManager.GetItemList(new MetadataRefreshOptions())
+            .Where(child => child.Path.StartsWith(parent.Path));
+
+        foreach (var child in children)
+        {
+            if (child is IMetadataFolder mf && mf.Id != parent.Id)
+            {
+                BuildItemsRecursive(mf, catalog);
+            }
+            else if (child is Video video)
+            {
+                catalog.Add(ToMediaItem(video));
+            }
+        }
+
+        return catalog;
+    }
+
+    private MediaItem ToMediaItem(Video video)
+    {
+        var sources = video.GetMediaSources(false);
+        return new MediaItem
+        {
+            Id = video.InternalId.ToString(),
+            Title = video.Name,
+            Year = video.ProductionYear,
+            MediaType = video.MediaType.ToString(),
+            PosterUrl = video.PrimaryImagePath,
+            Overview = video.Overview,
+            Files = sources.Select(ms => new MediaFile
+            {
+                Id = ms.Path,
+                Path = ms.Path,
+                Size = ms.Size
+            }).ToList()
+        };
+    }
+
+    private void GenerateStrmFiles(string shareLinkId, List<MediaItem> items)
+    {
+        var root = GetShareRoot(shareLinkId);
         Directory.CreateDirectory(root);
 
         foreach (var item in items)
         {
             foreach (var file in item.Files)
             {
-                var strmPath = Path.Combine(root, SanitizeFileName(item.Title) + ".strm");
-                var strmContent = $"/mediashare/stream/{shareLinkId}/{file.Id}";
-                await File.WriteAllTextAsync(strmPath, strmContent);
+                var strm = Path.Combine(root, $"{SanitizeFileName(item.Title)}.strm");
+                File.WriteAllText(strm, $"/mediashare/stream/{shareLinkId}/{Uri.EscapeDataString(file.Id)}");
 
-                var nfoPath = Path.Combine(root, Path.GetFileNameWithoutExtension(strmPath) + ".nfo");
-                var nfoContent = $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<movie>
-  <title>{System.Security.SecurityElement.Escape(item.Title)}</title>
-  <year>{item.Year}</year>
-</movie>";
-                await File.WriteAllTextAsync(nfoPath, nfoContent);
+                var nfo = Path.Combine(root, $"{SanitizeFileName(item.Title)}.nfo");
+                var nfoContent = $"""
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <movie>
+                      <title>{SecurityElement.Escape(item.Title)}</title>
+                      <year>{item.Year ?? 0}</year>
+                    </movie>
+                    """;
+                File.WriteAllText(nfo, nfoContent);
             }
         }
-
-        // libraryManager.AddMediaPath(root, new MediaPathInfo()); // not available in jellyfin 10.11
     }
+
+    private static string GetShareRoot(string shareLinkId) => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Jellyfin.Plugin.MediaShare", "shared", shareLinkId);
 
     private static (string serverUrl, string code)? ParseInviteUrl(string url)
     {
         var uri = new Uri(url);
         var segments = uri.Segments;
-        // expects /api/mediashare/invite/{code}
         if (segments.Length < 4) throw new InvalidOperationException("Invalid invite URL");
         var code = segments[^1].TrimEnd('/');
         var baseUrl = $"{uri.Scheme}://{uri.Host}:{uri.Port}";

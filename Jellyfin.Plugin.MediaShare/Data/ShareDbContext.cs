@@ -1,7 +1,7 @@
-using JellyfinMediaShare.Models;
+using Jellyfin.Plugin.MediaShare.Models;
 using LiteDB;
 
-namespace JellyfinMediaShare.Data;
+namespace Jellyfin.Plugin.MediaShare.Data;
 
 public class ShareDbContext : IDisposable
 {

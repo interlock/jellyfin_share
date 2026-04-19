@@ -1,7 +1,7 @@
-using JellyfinMediaShare.Models;
+using Jellyfin.Plugin.MediaShare.Models;
 using Microsoft.Extensions.Logging;
 
-namespace JellyfinMediaShare.Services;
+namespace Jellyfin.Plugin.MediaShare.Services;
 
 public class SyncScheduler(
     FederationService fedService,

@@ -9,6 +9,8 @@
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <Authors>interlock</Authors>
+    <AssemblyName>Jellyfin.Plugin.MediaShare</AssemblyName>
+    <RootNamespace>Jellyfin.Plugin.MediaShare</RootNamespace>
     <Description>Share media libraries with friends across Jellyfin servers using invite links and .strm files.</Description>
     <RepositoryUrl>git@github.com:interlock/jellyfin_share.git</RepositoryUrl>
   </PropertyGroup>

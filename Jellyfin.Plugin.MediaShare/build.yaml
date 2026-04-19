@@ -11,6 +11,6 @@ description: >
 
 category: "Sharing"
 artifacts:
-  - "JellyfinMediaShare.dll"
+  - "Jellyfin.Plugin.MediaShare.dll"
 changelog: |-
   - Meh

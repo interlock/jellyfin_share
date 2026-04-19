@@ -1,8 +1,8 @@
-using JellyfinMediaShare.Configuration;
-using JellyfinMediaShare.Services;
+using Jellyfin.Plugin.MediaShare.Configuration;
+using Jellyfin.Plugin.MediaShare.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace JellyfinMediaShare.Controllers;
+namespace Jellyfin.Plugin.MediaShare.Controllers;
 
 [ApiController]
 [Route("mediashare")]
@@ -38,9 +38,8 @@ public class ShareLinkController : ControllerBase
         var link = _linkService.GetLinkById(linkId);
         if (link is null) return NotFound();
 
-        // Actual catalog generation will use ILibraryManager to query media items
-        // Returned as JSON for the peer server
-        return Ok(new[] { new { id = link.Id, libraryId = link.LibraryId } });
+        var catalog = _fedService.BuildCatalogFromLibrary(link.LibraryId);
+        return Ok(catalog);
     }
 
     [HttpPost("admin/links")]

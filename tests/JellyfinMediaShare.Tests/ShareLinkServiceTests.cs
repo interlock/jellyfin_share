@@ -1,7 +1,7 @@
-using JellyfinMediaShare.Data;
-using JellyfinMediaShare.Services;
+using Jellyfin.Plugin.MediaShare.Data;
+using Jellyfin.Plugin.MediaShare.Services;
 
-namespace JellyfinMediaShare.Tests;
+namespace Jellyfin.Plugin.MediaShare.Tests;
 
 public class ShareLinkServiceTests : IDisposable
 {
@@ -82,7 +82,7 @@ public class ShareLinkServiceTests : IDisposable
     public void ValidateInviteCode_ReturnsNullForExpiredLink()
     {
         // Create a link with an explicit expiry in the past
-        var expiredLink = new JellyfinMediaShare.Models.ShareLink
+        var expiredLink = new Jellyfin.Plugin.MediaShare.Models.ShareLink
         {
             LibraryId = "lib-expired",
             InviteCode = "expired_code_12345678901234567",

@@ -1,4 +1,4 @@
-namespace JellyfinMediaShare.Models;
+namespace Jellyfin.Plugin.MediaShare.Models;
 
 public class MediaItem
 {
