@@ -7,6 +7,14 @@
     "guid": "613657e0-25b9-4d58-9f4d-1496726b0532",
     "versions": [
       {
+        "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.24...0.0.25",
+        "targetAbi": "10.11.0.0",
+        "version": "0.0.25",
+        "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.25/Jellyfin.Plugin.MediaShare_0.0.25.zip",
+        "checksum": "ef09c37dcded78354ba4bf924cc023b5",
+        "timestamp": "2026-04-19T23:37:58Z"
+      },
+      {
         "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.22...0.0.23",
         "targetAbi": "10.11.0.0",
         "version": "0.0.23.0",
