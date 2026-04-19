@@ -4,7 +4,7 @@
       "name": "Media Share",
       "description": "Share media libraries with friends across Jellyfin servers using invite links and .strm file streaming.",
       "owner": "interlock",
-      "category": "General",
+      "category": "general",
       "guid": "613657e0-25b9-4d58-9f4d-1496726b0532",
       "versions": [
         {
