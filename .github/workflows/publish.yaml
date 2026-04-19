@@ -9,19 +9,28 @@ on:
       version:
         required: true
         type: string
+        description: "Plugin version to publish (e.g. 1.0.0)"
+      changelog:
+        required: false
+        type: string
+        default: ""
+        description: "Changelog / release notes for this version"
       dotnet-version:
         required: false
-        default: "9.0.x"
-        description: "The .NET version to setup for the build"
         type: string
+        default: "9.0.x"
+        description: ".NET version for the build"
       dotnet-target:
         required: false
-        default: "net9.0"
-        description: "The .NET target to set for JPRM"
         type: string
+        default: "net9.0"
+        description: ".NET target framework"
   workflow_dispatch:
-   
-
+    inputs:
+      changelog:
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build:
@@ -33,13 +42,13 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
-          dotnet-version: "${{ inputs.dotnet-version }}"
+          dotnet-version: ${{ inputs.dotnet-version || '9.0.x' }}
 
       - name: Build Jellyfin Plugin
         uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d # v1.1.1
         id: jprm
         with:
-          dotnet-target: "${{ inputs.dotnet-target }}"
+          dotnet-target: ${{ inputs.dotnet-target || 'net9.0' }}
           path: ./src
 
       - name: Upload Artifact
@@ -50,4 +59,84 @@ jobs:
           if-no-files-found: error
           path: ${{ steps.jprm.outputs.artifact }}
 
-  
+  manifest:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifact
+          path: artifact
+
+      - name: Read version from csproj
+        id: version
+        run: |
+          VERSION=$(grep -oP '<Version>\K[^<]+' src/JellyfinMediaShare.csproj)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION"
+
+      - name: Compute checksum
+        id: checksum
+        run: |
+          CHECKSUM=$(md5sum artifact/*.zip | awk '{print $1}')
+          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+          echo "checksum=$CHECKSUM"
+
+      - name: Update manifest.json
+        env:
+          PLUGIN_VERSION: ${{ inputs.version || steps.version.outputs.version }}
+          CHANGELOG: ${{ inputs.changelog || github.event.release.body || 'Automated release' }}
+          CHECKSUM: ${{ steps.checksum.outputs.checksum }}
+          SOURCE_URL: https://github.com/${{ github.repository }}/releases/download/${{ inputs.version || steps.version.outputs.version }}/__artifact__
+        run: |
+          ARTIFACT=$(ls artifact/*.zip | xargs basename)
+          SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${PLUGIN_VERSION}/${ARTIFACT}"
+
+          python3 << 'PYEOF'
+          import json, os, subprocess
+          changelog = os.environ.get("CHANGELOG", "").strip() or "Automated release"
+          checksum  = os.environ["CHECKSUM"]
+          source_url = os.environ["SOURCE_URL"]
+          plugin_ver = os.environ["PLUGIN_VERSION"]
+
+          # strip leading 'v' if present (e.g. v1.2.3 -> 1.2.3)
+          plugin_ver = plugin_ver.lstrip("v")
+          abi_ver    = "10.11.0.0"
+          timestamp  = subprocess.check_output(["date", "-u", "+%Y-%m-%dT%H:%M:%SZ"]).decode().strip()
+
+          entry = {
+              "changelog":   changelog,
+              "targetAbi":   abi_ver,
+              "version":     plugin_ver + ".0",
+              "sourceUrl":   source_url,
+              "checksum":    checksum,
+              "timestamp":   timestamp,
+          }
+
+          with open("manifest.json", "r+") as f:
+              manifest = json.load(f)
+              plugin = manifest["plugins"][0]
+              # Remove existing entry for this version (idempotent on re-run)
+              plugin["versions"] = [
+                  v for v in plugin.get("versions", [])
+                  if v.get("version") != entry["version"]
+              ]
+              plugin["versions"].append(entry)
+              plugin["versions"].sort(key=lambda v: [int(x) for x in v["version"].split(".")])
+              f.seek(0)
+              json.dump(manifest, f, indent=2)
+              f.truncate()
+
+          print(json.dumps(entry, indent=2))
+          PYEOF
+
+      - name: Commit manifest update
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "chore(manifest): add version ${{ inputs.version || steps.version.outputs.version }}"
+          file_pattern: manifest.json
+          skip_dirty: false

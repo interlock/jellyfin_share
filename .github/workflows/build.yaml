@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "manifest.json"
+      - "manifest.yaml"
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - "manifest.json"
+      - "manifest.yaml"
   workflow_call:
     inputs:
       dotnet-version:
