@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.MediaShare;
 
-public class SharePlugin : BasePlugin<PluginConfiguration>, IHasWebPages
+public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
     public static readonly Guid PluginId = Guid.Parse("613657e0-25b9-4d58-9f4d-1496726b0532");
 
@@ -21,7 +21,7 @@ public class SharePlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     private readonly ShareDbContext _db;
     private readonly string _dbPath;
 
-    public SharePlugin(
+    public Plugin(
         IServerApplicationHost serverHost,
         IApplicationPaths appPaths,
         IXmlSerializer xml,

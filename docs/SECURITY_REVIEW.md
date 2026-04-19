@@ -69,7 +69,7 @@
 
 ### [High] Hardcoded Server URL Causes Broken Functionality and Information Disclosure
 
-- **File**: `src/SharePlugin.cs`, line 36
+- **File**: `Jellyfin.Plugin.MediaShare/Plugin.cs`, line 39
 - **Description**: The server URL is hardcoded as `"http://localhost:8096"`. All share link invite URLs are generated using this value, meaning remote peers will receive invite links pointing to `http://localhost:8096` -- which is only resolvable on the local machine. Remote peers can never use these links correctly. Additionally, this hardcoded URL may leak internal infrastructure details if invite URLs are shared over untrusted networks.
 
 - **Remediation**: Determine the server URL dynamically from the incoming HTTP request (e.g. `Request.Scheme`, `Request.Host`) in the controller layer, or inject the correct base URL from the Jellyfin host configuration (`IServerApplicationHost`). Remove the hardcoded constant.
