@@ -40,6 +40,7 @@ jobs:
         id: jprm
         with:
           dotnet-target: "${{ inputs.dotnet-target }}"
+          path: ./src
 
       - name: Upload Artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
