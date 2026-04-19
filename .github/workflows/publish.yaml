@@ -91,7 +91,7 @@ jobs:
           PLUGIN_VERSION: ${{ env.GITHUB_REF || steps.version.outputs.version }}
           CHANGELOG: ${{ inputs.changelog || github.event.release.body || 'Automated release' }}
           CHECKSUM: ${{ steps.checksum.outputs.checksum }}
-          SOURCE_URL: https://github.com/${{ github.repository }}/releases/download/${{ GITHUB_REF || steps.version.outputs.version }}/__artifact__
+          SOURCE_URL: https://github.com/${{ github.repository }}/releases/download/${{ env.GITHUB_REF || steps.version.outputs.version }}/__artifact__
         run: |
           ARTIFACT=$(ls artifact/*.zip | xargs basename)
           SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${PLUGIN_VERSION}/${ARTIFACT}"
