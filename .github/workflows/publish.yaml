@@ -59,6 +59,9 @@ jobs:
           retention-days: 30
           if-no-files-found: error
           path: ${{ steps.jprm.outputs.artifact }}
+      - name: Upload release
+        uses: softprops/action-gh-release@v3
+        
 
   manifest:
     runs-on: ubuntu-latest
