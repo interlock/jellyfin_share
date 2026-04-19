@@ -103,29 +103,24 @@ public class FederationService(
             return [];
         }
 
-        var folder = libraryManager.GetItemById(guid) as IMetadataFolder;
-        if (folder is null)
+        var folder = libraryManager.GetItemById(guid) as Folder;
+        if (folder is null || string.IsNullOrEmpty(folder.Path))
         {
-            logger.LogWarning("Library not found or not a folder: {LibraryId}", libraryId);
+            logger.LogWarning("Library not found or has no path: {LibraryId}", libraryId);
             return [];
         }
 
-        return BuildItemsRecursive(folder, new());
+        return CollectMediaItems(folder, new());
     }
 
-    private List<MediaItem> BuildItemsRecursive<T>(T parent, List<MediaItem> catalog)
-        where T : BaseItem, IMetadataFolder
+    private List<MediaItem> CollectMediaItems(Folder parent, List<MediaItem> catalog)
     {
-        var children = libraryManager.GetItemList(new MetadataRefreshOptions())
-            .Where(child => child.Path.StartsWith(parent.Path));
+        var query = new InternalItemsQuery { AncestorIds = [parent.Id] };
+        var items = libraryManager.GetItemList(query);
 
-        foreach (var child in children)
+        foreach (var item in items)
         {
-            if (child is IMetadataFolder mf && mf.Id != parent.Id)
-            {
-                BuildItemsRecursive(mf, catalog);
-            }
-            else if (child is Video video)
+            if (item is Video video)
             {
                 catalog.Add(ToMediaItem(video));
             }
@@ -139,7 +134,7 @@ public class FederationService(
         var sources = video.GetMediaSources(false);
         return new MediaItem
         {
-            Id = video.InternalId.ToString(),
+            Id = video.Id.ToString(),
             Title = video.Name,
             Year = video.ProductionYear,
             MediaType = video.MediaType.ToString(),
@@ -149,7 +144,7 @@ public class FederationService(
             {
                 Id = ms.Path,
                 Path = ms.Path,
-                Size = ms.Size
+                Size = ms.RunTimeTicks ?? 0
             }).ToList()
         };
     }
@@ -170,7 +165,7 @@ public class FederationService(
                 var nfoContent = $"""
                     <?xml version="1.0" encoding="utf-8"?>
                     <movie>
-                      <title>{SecurityElement.Escape(item.Title)}</title>
+                      <title>{System.Security.SecurityElement.Escape(item.Title)}</title>
                       <year>{item.Year ?? 0}</year>
                     </movie>
                     """;

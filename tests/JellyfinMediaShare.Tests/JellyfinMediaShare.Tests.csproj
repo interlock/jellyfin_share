@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\JellyfinMediaShare.csproj" />
+    <ProjectReference Include="..\..\Jellyfin.Plugin.MediaShare\Jellyfin.Plugin.MediaShare.csproj" />
   </ItemGroup>
 
 </Project>

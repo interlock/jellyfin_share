@@ -4,6 +4,7 @@ using Jellyfin.Plugin.MediaShare.Data;
 using Jellyfin.Plugin.MediaShare.Services;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
+using MediaBrowser.Controller;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
@@ -35,7 +36,9 @@ public class SharePlugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
         _db = new ShareDbContext(_dbPath);
 
-        var serverUrl = serverHost.GetApiClientSourceUrl();
+        var scheme = serverHost.ListenWithHttps ? "https" : "http";
+        var port = serverHost.ListenWithHttps ? serverHost.HttpsPort : serverHost.HttpPort;
+        var serverUrl = $"{scheme}://{serverHost.FriendlyName}:{port}";
 
         LinkService = new ShareLinkService(_db, serverUrl);
         FedService = new FederationService(_db, libraryManager, httpClientFactory, loggerFactory.CreateLogger<FederationService>());

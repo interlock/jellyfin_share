@@ -1,5 +1,5 @@
 DOTNET = ~/.dotnet/dotnet
-SRC_DIR = src
+SRC_DIR = Jellyfin.Plugin.MediaShare
 PUBLISH_DIR = $(SRC_DIR)/publish
 DIST_DIR = dist
 TEST_DIR = tests/JellyfinMediaShare.Tests
@@ -7,7 +7,7 @@ TEST_DIR = tests/JellyfinMediaShare.Tests
 .PHONY: build clean install test publish package
 
 build:
-	$(DOTNET) build $(SRC_DIR)/JellyfinMediaShare.csproj -c Release
+	$(DOTNET) build $(SRC_DIR)/Jellyfin.Plugin.MediaShare.csproj -c Release
 
 test: build
 	$(DOTNET) test $(TEST_DIR)/JellyfinMediaShare.Tests.csproj -c Release --logger "console;verbosity=normal"
