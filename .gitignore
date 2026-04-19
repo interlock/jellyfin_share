@@ -1,0 +1,45 @@
+# .NET
+bin/
+obj/
+*.dll
+*.pdb
+*.user
+*.suo
+*.cache
+*.log
+*.tmp
+
+# IDE / Editor
+.idea/
+.vs/
+.vscode/
+*.swp
+*.swo
+*~
+
+# JetBrains Rider
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jellyfin plugin outputs (local dev installs)
+publish/
+
+# Test results
+TestResults/
+*.trx
+
+# NuGet
+packages/
+*.nupkg
+
+# Build artifacts
+*.msi
+*.msm
+*.cab
+
+# Rider / dotnet CLI restore lockfiles
+project.lock.json
+project.nuget.cache

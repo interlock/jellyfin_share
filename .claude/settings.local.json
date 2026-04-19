@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:jellyfin.org)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -fsSL https://packages.microsoft.com/keys/microsoft.asc)",
+      "Bash(gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg)",
+      "Bash(apt-get update *)",
+      "Bash(apt-get install *)",
+      "Bash(gpg --dearmor -o ~/.gnupg/microsoft.gpg)",
+      "Bash(chmod 644 ~/.gnupg/microsoft.gpg)",
+      "Bash(mkdir -p ~/.apt)",
+      "Bash(gpg --batch --dearmor -o ~/.gnupg/microsoft.gpg)",
+      "Bash(~/.dotnet/dotnet new *)",
+      "Bash(~/.dotnet/dotnet add *)",
+      "Bash(~/.dotnet/dotnet restore *)",
+      "Bash(~/.dotnet/dotnet build *)",
+      "Bash(~/.dotnet/dotnet nuget *)",
+      "Bash(grep \"BasePlugin\\\\`1\\\\.\" ~/.nuget/packages/jellyfin.common/10.11.8/lib/net9.0/MediaBrowser.Common.xml)",
+      "Bash(~/.dotnet/dotnet test *)"
+    ]
+  }
+}
