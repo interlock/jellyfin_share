@@ -1,4 +1,12 @@
+name: '🏗️ Build Plugin'
+
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_call:
     inputs:
       dotnet-version:
@@ -31,10 +39,10 @@ jobs:
           dotnet-target: "${{ inputs.dotnet-target }}"
           path: ./src
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        with:
-          name: build-artifact
-          retention-days: 30
-          if-no-files-found: error
-          path: ${{ steps.jprm.outputs.artifact }}
+      # - name: Upload Artifact
+      #   uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+      #   with:
+      #     name: build-artifact
+      #     retention-days: 30
+      #     if-no-files-found: error
+      #     path: ${{ steps.jprm.outputs.artifact }}

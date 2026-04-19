@@ -1,13 +1,14 @@
+name: '🚀 Publish Plugin'
+
 on:
+  release:
+    types:
+      - released
   workflow_call:
     inputs:
       version:
         required: true
         type: string
-      is-unstable:
-        required: false
-        default: false
-        type: boolean
       dotnet-version:
         required: false
         default: "9.0.x"
@@ -18,6 +19,7 @@ on:
         default: "net9.0"
         description: "The .NET target to set for JPRM"
         type: string
+    workflow_dispatch:
    
 
 
