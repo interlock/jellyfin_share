@@ -1,62 +1,96 @@
-using Jellyfin.Plugin.MediaShare.Data;
+using Jellyfin.Plugin.MediaShare.Configuration;
 using Jellyfin.Plugin.MediaShare.Models;
 
 namespace Jellyfin.Plugin.MediaShare.Services;
 
-public class ShareLinkService(ShareDbContext db, string serverUrl)
+public class ShareLinkService(
+    Func<PluginConfiguration> getConfig,
+    Action<PluginConfiguration> saveConfig,
+    string serverUrl)
 {
-    public string CreateShareLink(string libraryId, string libraryName, TimeSpan? expiresIn)
+    public string CreateShareLink(string libraryId, string libraryName, TimeSpan? expiresIn, long defaultExpirySeconds)
     {
-        var link = new ShareLink
-        {
-            LibraryId = libraryId,
-            InviteCode = Guid.NewGuid().ToString("N"),
-            ExpiresAt = expiresIn.HasValue ? DateTime.UtcNow.Add(expiresIn.Value) : null
-        };
-        db.Links.Insert(link);
-        return $"{serverUrl}/api/mediashare/invite/{link.InviteCode}";
-    }
+        var config = getConfig();
 
-    public SharedLibrary? ValidateInviteCode(string code, long defaultExpirySeconds = 604800)
-    {
-        var link = db.Links.FindOne(l => l.InviteCode == code && !l.IsRevoked);
-        if (link is null) return null;
-
-        var effectiveExpiry = link.ExpiresAt;
-        if (link.UsesDefaultExpiry && effectiveExpiry is null)
+        var share = config.SharedLibraries.FirstOrDefault(s => s.LibraryId == libraryId);
+        if (share is null)
         {
-            // Recompute from creation time + current default
-            effectiveExpiry = defaultExpirySeconds < 0
-                ? (DateTime?)null
-                : link.CreatedAt.AddSeconds(defaultExpirySeconds);
+            share = new LibraryShare { LibraryId = libraryId, LibraryName = libraryName };
+            config.SharedLibraries.Add(share);
         }
 
-        if (effectiveExpiry.HasValue && effectiveExpiry < DateTime.UtcNow) return null;
-        return new SharedLibrary
+        var code = Guid.NewGuid().ToString("N");
+        var info = new ShareLinkInfo
         {
-            LibraryId = link.LibraryId,
-            PeerShareLinkId = link.Id,
-            PeerServerUrl = serverUrl,
-            IsIncoming = false
+            Id = code,
+            LibraryId = libraryId,
+            CreatedAt = DateTime.UtcNow,
+            UsesDefaultExpiry = !expiresIn.HasValue,
+            ExpiresAt = expiresIn.HasValue
+                ? DateTime.UtcNow.Add(expiresIn.Value)
+                : (defaultExpirySeconds < 0 ? null : DateTime.UtcNow.AddSeconds(defaultExpirySeconds)),
+            InviteUrl = $"{serverUrl}/api/mediashare/invite/{code}"
         };
+
+        share.Links.Add(info);
+        saveConfig(config);
+        return info.InviteUrl;
     }
 
-    public ShareLink? GetLinkById(string id)
-        => db.Links.FindOne(l => l.Id == id && !l.IsRevoked);
+    public ShareLinkInfo? ValidateInviteCode(string code, long defaultExpirySeconds)
+    {
+        var config = getConfig();
+        foreach (var share in config.SharedLibraries)
+        {
+            var link = share.Links.FirstOrDefault(l => l.Id == code && !l.IsRevoked);
+            if (link is null) continue;
 
-    public IEnumerable<ShareLink> GetLinksForLibrary(string libraryId)
-        => db.Links.Find(l => l.LibraryId == libraryId);
+            var effectiveExpiry = link.ExpiresAt;
+            if (link.UsesDefaultExpiry)
+            {
+                effectiveExpiry = defaultExpirySeconds < 0
+                    ? (DateTime?)null
+                    : DateTime.UtcNow.AddSeconds(defaultExpirySeconds);
+            }
+
+            if (effectiveExpiry.HasValue && effectiveExpiry < DateTime.UtcNow) return null;
+            return link;
+        }
+        return null;
+    }
+
+    public ShareLinkInfo? GetLinkById(string id)
+    {
+        var config = getConfig();
+        foreach (var share in config.SharedLibraries)
+        {
+            var link = share.Links.FirstOrDefault(l => l.Id == id && !l.IsRevoked);
+            if (link is not null) return link;
+        }
+        return null;
+    }
 
     public void RevokeLink(string id)
     {
-        var link = db.Links.FindOne(l => l.Id == id);
-        if (link is not null)
+        var config = getConfig();
+        foreach (var share in config.SharedLibraries)
         {
-            link.IsRevoked = true;
-            db.Links.Update(link);
+            var link = share.Links.FirstOrDefault(l => l.Id == id);
+            if (link is not null)
+            {
+                link.IsRevoked = true;
+                saveConfig(config);
+                return;
+            }
         }
     }
 
-    public IEnumerable<ShareLink> GetAllActiveLinks()
-        => db.Links.Find(l => !l.IsRevoked);
+    public IEnumerable<ShareLinkInfo> GetAllActiveLinks()
+    {
+        var config = getConfig();
+        return config.SharedLibraries
+            .SelectMany(s => s.Links)
+            .Where(l => !l.IsRevoked)
+            .ToList();
+    }
 }

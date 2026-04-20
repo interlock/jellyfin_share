@@ -46,7 +46,6 @@
             <option value="604800">7 days</option>
             <option value="2592000">30 days</option>
             <option value="7776000">90 days</option>
-            <option value="never">Never</option>
         </select>
         <button class="emby-button" onclick="createLink()">Create Invite Link</button>
     </div>
@@ -83,7 +82,7 @@
     <div class="input-group">
         <label>Watch folder:</label>
         <input id="watchFolder" class="emby-input" placeholder="/var/lib/jellyfin/media/shared" style="flex:1;" />
-        <button class="emby-button" onclick="saveConfig()">Save</button>
+        <button class="emby-button" onclick="saveSettings()">Save</button>
     </div>
     <p style="font-size:12px; color:#666; margin-top:4px;">
         Shared media will be written as .strm files to this folder. Jellyfin scans this folder as a library.
@@ -97,12 +96,12 @@
             <option value="7776000">90 days</option>
             <option value="-1">Never</option>
         </select>
-        <button class="emby-button" onclick="saveDefaultExpiry()">Save default</button>
+        <button class="emby-button" onclick="saveSettings()">Save default</button>
     </div>
 </div>
 
 <script>
-const pluginId = 'JellyfinMediaShare';
+const pluginId = 'Jellyfin.Plugin.MediaShare';
 
 function showToast(msg) {
     const t = document.getElementById('toast');
@@ -128,10 +127,9 @@ function timeRemaining(d) {
 async function loadConfig() {
     const cfg = await ApiClient.getPluginConfiguration(pluginId) || {};
     renderLibraries(cfg);
-    renderLinks(cfg);
-    renderIncoming(cfg);
     document.getElementById('watchFolder').value = cfg.watchFolderPath || '';
     document.getElementById('defaultExpirySelect').value = String(cfg.defaultExpirySeconds ?? 604800);
+    await Promise.all([loadLinks(), loadIncoming()]);
 }
 
 async function renderLibraries(cfg) {
@@ -140,44 +138,52 @@ async function renderLibraries(cfg) {
     sel.innerHTML = libs.map(l => `<option value="${l.Id}">${l.Name}</option>`).join('');
 }
 
-async function renderLinks(cfg) {
-    const body = document.getElementById('linksBody');
-    const shares = cfg.sharedLibraries || [];
+async function loadLinks() {
+    const links = await ApiClient.getJSON({ url: '/mediashare/admin/links' });
+    const cfg = await ApiClient.getPluginConfiguration(pluginId) || {};
     const defSecs = cfg.defaultExpirySeconds ?? 604800;
+    renderLinks(links || [], defSecs);
+}
 
-    if (!shares.length || shares.every(s => !s.links?.length)) {
+function renderLinks(links, defSecs) {
+    const body = document.getElementById('linksBody');
+    if (!links.length) {
         body.innerHTML = '<tr><td colspan="5" style="color:#666">No shared libraries yet</td></tr>';
         return;
     }
-    body.innerHTML = shares.flatMap(s => (s.links || []).map(l => {
+    body.innerHTML = links.map(l => {
         const expiry = l.expiresAt ? timeRemaining(l.expiresAt)
             : (l.usesDefaultExpiry ? `Default (${defSecs < 0 ? 'never' : Math.floor(defSecs/86400) + 'd'})` : 'Never');
         const expiredStyle = l.expiresAt && new Date(l.expiresAt) < new Date() ? 'color:#c44;' : '';
         return `<tr>
-            <td>${s.libraryName}</td>
-            <td><code style="font-size:12px; color:#00a4dc">${l.inviteUrl}</code></td>
+            <td>${l.libraryId || '—'}</td>
+            <td><code style="font-size:12px; color:#00a4dc">${l.inviteUrl || ''}</code></td>
             <td>${fmtDate(l.createdAt)}</td>
             <td style="${expiredStyle}">${expiry}${l.usesDefaultExpiry ? ' <em style="font-size:11px;color:#666">(default)</em>' : ''}</td>
             <td>
-                <button class="copy-btn" onclick="copyLink('${l.inviteUrl}')">Copy</button>
+                <button class="copy-btn" onclick="copyLink('${l.inviteUrl || ''}')">Copy</button>
                 <button class="revoke-btn" onclick="revokeLink('${l.id}')">Revoke</button>
             </td>
         </tr>`;
-    })).join('');
+    }).join('');
 }
 
-async function renderIncoming(cfg) {
+async function loadIncoming() {
+    const shares = await ApiClient.getJSON({ url: '/mediashare/admin/shares' });
+    renderIncoming(shares || []);
+}
+
+function renderIncoming(shares) {
     const body = document.getElementById('incomingBody');
-    const inc = cfg.incomingShares || [];
-    if (!inc.length) {
+    if (!shares.length) {
         body.innerHTML = '<tr><td colspan="5" style="color:#666">No incoming shares</td></tr>';
         return;
     }
-    body.innerHTML = inc.map(s => `
+    body.innerHTML = shares.map(s => `
         <tr>
-            <td><code style="font-size:12px">${s.peerServerUrl}</code></td>
-            <td>${s.libraryName}</td>
-            <td>${s.itemCount}</td>
+            <td><code style="font-size:12px">${s.peerServerUrl || ''}</code></td>
+            <td>${s.libraryName || '—'}</td>
+            <td>${s.itemCount ?? 0}</td>
             <td>${fmtDate(s.addedAt)}</td>
             <td><button class="revoke-btn" onclick="removeIncoming('${s.id}')">Remove</button></td>
         </tr>
@@ -188,80 +194,62 @@ async function createLink() {
     const sel = document.getElementById('librarySelect');
     if (!sel.value) return;
     const expirySel = document.getElementById('linkExpirySelect');
-    const cfg = await ApiClient.getPluginConfiguration(pluginId) || {};
-    cfg.sharedLibraries = cfg.sharedLibraries || [];
-
-    let share = cfg.sharedLibraries.find(s => s.libraryId === sel.value);
-    if (!share) {
-        share = { libraryId: sel.value, libraryName: sel.options[sel.selectedIndex].text, links: [] };
-        cfg.sharedLibraries.push(share);
-    }
-    const code = Math.random().toString(36).slice(2);
-    const inviteUrl = window.location.origin + '/api/mediashare/invite/' + code;
-
     const expiryMode = expirySel.value;
-    let expiresAt = null;
-    let usesDefault = false;
-    if (expiryMode === 'never') {
-        expiresAt = null;
-        usesDefault = false;
-    } else if (expiryMode === 'use-default') {
-        expiresAt = (cfg.defaultExpirySeconds ?? 604800) < 0 ? null : new Date(Date.now() + (cfg.defaultExpirySeconds ?? 604800) * 1000).toISOString();
-        usesDefault = true;
-    } else {
-        expiresAt = new Date(Date.now() + parseInt(expiryMode) * 1000).toISOString();
-        usesDefault = false;
+
+    let expiresInSeconds = null; // null = use server default
+    if (expiryMode !== 'use-default') {
+        expiresInSeconds = parseInt(expiryMode);
     }
 
-    share.links.push({
-        id: code, inviteUrl,
-        createdAt: new Date().toISOString(),
-        expiresAt,
-        usesDefaultExpiry: usesDefault
+    const body = JSON.stringify({
+        libraryId: sel.value,
+        libraryName: sel.options[sel.selectedIndex].text,
+        expiresInSeconds
     });
-    await ApiClient.updatePluginConfiguration(pluginId, cfg);
-    renderLinks(cfg);
-    showToast('Link created');
+
+    const resp = await fetch('/mediashare/admin/links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body
+    });
+    if (resp.ok) { showToast('Link created'); loadConfig(); }
+    else { alert('Failed to create link: ' + resp.status); }
 }
 
 async function revokeLink(id) {
-    const cfg = await ApiClient.getPluginConfiguration(pluginId) || {};
-    for (const s of (cfg.sharedLibraries || []))
-        s.links = s.links.filter(l => l.id !== id);
-    await ApiClient.updatePluginConfiguration(pluginId, cfg);
-    renderLinks(cfg);
-    showToast('Link revoked');
+    const resp = await fetch(`/mediashare/admin/links/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (resp.ok) { showToast('Link revoked'); loadConfig(); }
+    else { alert('Failed to revoke link: ' + resp.status); }
 }
 
 async function acceptInvite() {
     const url = document.getElementById('inviteUrlInput').value.trim();
     if (!url) return;
-    try {
-        const resp = await fetch(url, { method: 'POST' });
-        if (resp.ok) { showToast('Share accepted'); loadConfig(); }
-        else { alert('Failed to accept share: ' + resp.status); }
-    } catch(e) { alert('Error: ' + e.message); }
+    const resp = await fetch('/mediashare/admin/shares/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inviteUrl: url })
+    });
+    if (resp.ok) { showToast('Share accepted'); loadConfig(); }
+    else { alert('Failed to accept share: ' + resp.status); }
 }
 
 async function removeIncoming(id) {
-    const cfg = await ApiClient.getPluginConfiguration(pluginId) || {};
-    cfg.incomingShares = (cfg.incomingShares || []).filter(s => s.id !== id);
-    await ApiClient.updatePluginConfiguration(pluginId, cfg);
-    renderIncoming(cfg);
+    const resp = await fetch(`/mediashare/admin/shares/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (resp.ok) { showToast('Share removed'); loadConfig(); }
+    else { alert('Failed to remove share: ' + resp.status); }
 }
 
-async function saveConfig() {
-    const cfg = await ApiClient.getPluginConfiguration(pluginId) || {};
-    cfg.watchFolderPath = document.getElementById('watchFolder').value;
-    await ApiClient.updatePluginConfiguration(pluginId, cfg);
-    showToast('Saved');
-}
-
-async function saveDefaultExpiry() {
-    const cfg = await ApiClient.getPluginConfiguration(pluginId) || {};
-    cfg.defaultExpirySeconds = parseInt(document.getElementById('defaultExpirySelect').value);
-    await ApiClient.updatePluginConfiguration(pluginId, cfg);
-    showToast('Default expiry saved');
+async function saveSettings() {
+    const watchFolder = document.getElementById('watchFolder').value;
+    const defaultExpiry = parseInt(document.getElementById('defaultExpirySelect').value);
+    const resp = await fetch('/mediashare/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ watchFolderPath: watchFolder, defaultExpirySeconds: defaultExpiry })
+    });
+    if (resp.ok) showToast('Settings saved');
+    else alert('Failed to save settings: ' + resp.status);
 }
 
 function copyLink(url) {

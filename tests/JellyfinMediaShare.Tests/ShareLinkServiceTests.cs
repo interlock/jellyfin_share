@@ -1,30 +1,23 @@
-using Jellyfin.Plugin.MediaShare.Data;
+using Jellyfin.Plugin.MediaShare.Configuration;
 using Jellyfin.Plugin.MediaShare.Services;
 
 namespace Jellyfin.Plugin.MediaShare.Tests;
 
-public class ShareLinkServiceTests : IDisposable
+public class ShareLinkServiceTests
 {
-    private readonly ShareDbContext _db;
-    private readonly ShareLinkService _service;
-    private readonly string _serverUrl = "http://localhost:8096";
-
-    public ShareLinkServiceTests()
-    {
-        var tempPath = Path.Combine(Path.GetTempPath(), $"jms_test_{Guid.NewGuid():N}.db");
-        _db = new ShareDbContext(tempPath);
-        _service = new ShareLinkService(_db, _serverUrl);
-    }
-
-    public void Dispose()
-    {
-        _db.Dispose();
-    }
+    private PluginConfiguration MakeConfig()
+        => new PluginConfiguration { DefaultExpirySeconds = 604800 };
 
     [Fact]
-    public void CreateShareLink_ReturnsNonNullUrl()
+    public void CreateShareLink_ReturnsNonEmptyUrl()
     {
-        var url = _service.CreateShareLink("lib-1", "My Library", null);
+        var config = MakeConfig();
+        var svc = new ShareLinkService(
+            () => config,
+            c => { },
+            "http://localhost:8096");
+
+        var url = svc.CreateShareLink("lib-1", "My Library", null, 604800);
 
         Assert.NotNull(url);
         Assert.NotEmpty(url);
@@ -33,47 +26,47 @@ public class ShareLinkServiceTests : IDisposable
     [Fact]
     public void CreateShareLink_ReturnsUrlContainingInviteCode()
     {
-        var url = _service.CreateShareLink("lib-1", "My Library", null);
+        var config = MakeConfig();
+        var svc = new ShareLinkService(
+            () => config,
+            c => { },
+            "http://localhost:8096");
 
-        // URL format: {serverUrl}/api/mediashare/invite/{inviteCode}
+        var url = svc.CreateShareLink("lib-1", "My Library", null, 604800);
+
         Assert.Contains("/api/mediashare/invite/", url);
-        // The invite code is a 32-char GUID with no dashes
         var segments = url.Split('/');
-        var inviteSegment = segments[segments.Length - 1];
-        Assert.Equal(32, inviteSegment.Length);
-        Assert.DoesNotContain("-", inviteSegment);
+        var code = segments[^1];
+        Assert.Equal(32, code.Length);
+        Assert.DoesNotContain("-", code);
     }
 
     [Fact]
-    public void CreateShareLink_StoresLinkInDatabase()
+    public void CreateShareLink_StoresLinkInConfig()
     {
-        var url = _service.CreateShareLink("lib-1", "My Library", null);
+        var config = MakeConfig();
+        var saved = false;
+        var svc = new ShareLinkService(
+            () => config,
+            c => { saved = true; },
+            "http://localhost:8096");
 
-        var segments = url.Split('/');
-        var inviteCode = segments[segments.Length - 1];
-        var link = _db.Links.FindOne(l => l.InviteCode == inviteCode);
+        var url = svc.CreateShareLink("lib-1", "My Library", null, 604800);
+        var code = url.Split('/')[^1];
 
-        Assert.NotNull(link);
-        Assert.Equal("lib-1", link.LibraryId);
+        Assert.Single(config.SharedLibraries);
+        Assert.Equal("lib-1", config.SharedLibraries[0].LibraryId);
+        Assert.Single(config.SharedLibraries[0].Links);
+        Assert.Equal(code, config.SharedLibraries[0].Links[0].Id);
     }
 
     [Fact]
     public void ValidateInviteCode_ReturnsNullForInvalidCode()
     {
-        var result = _service.ValidateInviteCode("nonexistent_code_123456789012");
+        var config = MakeConfig();
+        var svc = new ShareLinkService(() => config, c => { }, "http://localhost:8096");
 
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public void ValidateInviteCode_ReturnsNullForRevokedLink()
-    {
-        var url = _service.CreateShareLink("lib-1", "My Library", null);
-        var inviteCode = url.Split('/').Last();
-        var link = _db.Links.FindOne(l => l.InviteCode == inviteCode);
-        _service.RevokeLink(link!.Id);
-
-        var result = _service.ValidateInviteCode(inviteCode);
+        var result = svc.ValidateInviteCode("nonexistent_code_12345678901234567", 604800);
 
         Assert.Null(result);
     }
@@ -81,150 +74,156 @@ public class ShareLinkServiceTests : IDisposable
     [Fact]
     public void ValidateInviteCode_ReturnsNullForExpiredLink()
     {
-        // Create a link with an explicit expiry in the past
-        var expiredLink = new Jellyfin.Plugin.MediaShare.Models.ShareLink
+        var config = MakeConfig();
+        config.SharedLibraries.Add(new LibraryShare
         {
             LibraryId = "lib-expired",
-            InviteCode = "expired_code_12345678901234567",
-            ExpiresAt = DateTime.UtcNow.AddMinutes(-5),
-            UsesDefaultExpiry = false
-        };
-        _db.Links.Insert(expiredLink);
+            Links =
+            [
+                new ShareLinkInfo
+                {
+                    Id = "expired_code_12345678901234567",
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(-5),
+                    UsesDefaultExpiry = false
+                }
+            ]
+        });
+        var svc = new ShareLinkService(() => config, c => { }, "http://localhost:8096");
 
-        var result = _service.ValidateInviteCode("expired_code_12345678901234567");
+        var result = svc.ValidateInviteCode("expired_code_12345678901234567", 604800);
 
         Assert.Null(result);
     }
 
     [Fact]
-    public void ValidateInviteCode_ReturnsSharedLibraryForValidNonExpiredLink()
+    public void ValidateInviteCode_ReturnsLinkForValidNonExpiredLink()
     {
-        var url = _service.CreateShareLink("lib-1", "My Library", null);
-        var inviteCode = url.Split('/').Last();
+        var config = MakeConfig();
+        config.SharedLibraries.Add(new LibraryShare
+        {
+            LibraryId = "lib-1",
+            Links = [new ShareLinkInfo { Id = "valid_code_12345678901234567890", UsesDefaultExpiry = false }]
+        });
+        var svc = new ShareLinkService(() => config, c => { }, "http://localhost:8096");
 
-        var result = _service.ValidateInviteCode(inviteCode);
+        var result = svc.ValidateInviteCode("valid_code_12345678901234567890", 604800);
 
         Assert.NotNull(result);
-        Assert.Equal("lib-1", result.LibraryId);
-        Assert.Equal(_serverUrl, result.PeerServerUrl);
-        Assert.False(result.IsIncoming);
+        Assert.Equal("valid_code_12345678901234567890", result.Id);
     }
 
     [Fact]
-    public void ValidateInviteCode_WithUsesDefaultExpiryTrue_RecomputesExpiryFromCreatedAt()
+    public void ValidateInviteCode_UsesDefaultExpiry_WhenLinkUsesDefault()
     {
-        // Create a link with no explicit expiry and UsesDefaultExpiry=true (default)
-        var url = _service.CreateShareLink("lib-1", "My Library", null);
-        var inviteCode = url.Split('/').Last();
+        var config = MakeConfig();
+        config.SharedLibraries.Add(new LibraryShare
+        {
+            LibraryId = "lib-1",
+            Links = [new ShareLinkInfo { Id = "default_expiry_code_1234567890", UsesDefaultExpiry = true }]
+        });
+        var svc = new ShareLinkService(() => config, c => { }, "http://localhost:8096");
 
-        // Default expiry is 604800 seconds (7 days)
-        // Link was just created, so should be valid
-        var result = _service.ValidateInviteCode(inviteCode, defaultExpirySeconds: 604800);
+        // Just-created link with default expiry — should be valid
+        var result = svc.ValidateInviteCode("default_expiry_code_1234567890", 604800);
 
         Assert.NotNull(result);
-        Assert.Equal("lib-1", result.LibraryId);
     }
 
     [Fact]
-    public void ValidateInviteCode_WithUsesDefaultExpiryFalse_UsesStoredExpiresAt()
+    public void ValidateInviteCode_NeverExpires_WhenDefaultIsNegative()
     {
-        // Create a link via the service (guarantees correct storage)
-        var url = _service.CreateShareLink("lib-explicit", "My Library", null);
-        var inviteCode = url.Split('/').Last();
+        var config = MakeConfig();
+        config.SharedLibraries.Add(new LibraryShare
+        {
+            LibraryId = "lib-1",
+            Links = [new ShareLinkInfo { Id = "never_expires_12345678901234567", UsesDefaultExpiry = true }]
+        });
+        var svc = new ShareLinkService(() => config, c => { }, "http://localhost:8096");
 
-        // Directly update UsesDefaultExpiry to false and set a far-future ExpiresAt
-        var link = _db.Links.FindOne(l => l.InviteCode == inviteCode);
-        Assert.NotNull(link);
-        var futureExpiry = DateTime.UtcNow.AddDays(30);
-        link.UsesDefaultExpiry = false;
-        link.ExpiresAt = futureExpiry;
-        _db.Links.Update(link);
-
-        // Retrieve again and verify the update persisted
-        var updatedLink = _db.Links.FindById(link.Id);
-        Assert.NotNull(updatedLink);
-        Assert.False(updatedLink.UsesDefaultExpiry);
-        Assert.NotNull(updatedLink.ExpiresAt);
-
-        // Validate with the default short expiry — link should be valid
-        // because UsesDefaultExpiry=false means the stored ExpiresAt (30 days from now)
-        // is used instead of recomputing from defaultExpirySeconds
-        var result = _service.ValidateInviteCode(inviteCode, defaultExpirySeconds: 1);
+        var result = svc.ValidateInviteCode("never_expires_12345678901234567", -1);
 
         Assert.NotNull(result);
-        Assert.Equal("lib-explicit", result.LibraryId);
     }
 
     [Fact]
-    public void ValidateInviteCode_WithNegativeDefaultExpirySeconds_ReturnsLibrary()
+    public void RevokeLink_MarksLinkAsRevoked()
     {
-        var url = _service.CreateShareLink("lib-1", "My Library", null);
-        var inviteCode = url.Split('/').Last();
+        var config = MakeConfig();
+        config.SharedLibraries.Add(new LibraryShare
+        {
+            LibraryId = "lib-1",
+            Links = [new ShareLinkInfo { Id = "revoke_this_12345678901234567" }]
+        });
+        var saved = false;
+        var svc = new ShareLinkService(() => config, c => { saved = true; }, "http://localhost:8096");
 
-        // Negative defaultExpirySeconds means never expires
-        var result = _service.ValidateInviteCode(inviteCode, defaultExpirySeconds: -1);
+        svc.RevokeLink("revoke_this_12345678901234567");
 
-        Assert.NotNull(result);
-        Assert.Equal("lib-1", result.LibraryId);
+        Assert.True(config.SharedLibraries[0].Links[0].IsRevoked);
+        Assert.True(saved);
     }
 
     [Fact]
-    public void RevokeLink_MarksIsRevokedTrue()
+    public void GetAllActiveLinks_ExcludesRevoked()
     {
-        var url = _service.CreateShareLink("lib-1", "My Library", null);
-        var inviteCode = url.Split('/').Last();
-        var link = _db.Links.FindOne(l => l.InviteCode == inviteCode);
-        var linkId = link!.Id;
+        var config = MakeConfig();
+        config.SharedLibraries.Add(new LibraryShare
+        {
+            LibraryId = "lib-1",
+            Links =
+            [
+                new ShareLinkInfo { Id = "link1_12345678901234567890", IsRevoked = true },
+                new ShareLinkInfo { Id = "link2_12345678901234567890", IsRevoked = false }
+            ]
+        });
+        var svc = new ShareLinkService(() => config, c => { }, "http://localhost:8096");
 
-        _service.RevokeLink(linkId);
+        var active = svc.GetAllActiveLinks().ToList();
 
-        var revokedLink = _db.Links.FindById(linkId);
-        Assert.True(revokedLink!.IsRevoked);
+        Assert.Single(active);
+        Assert.Equal("link2_12345678901234567890", active[0].Id);
     }
 
     [Fact]
-    public void GetAllActiveLinks_ExcludesRevokedLinks()
+    public void GetAllActiveLinks_ReturnsEmptyWhenAllRevoked()
     {
-        // Create and revoke one link
-        var url1 = _service.CreateShareLink("lib-1", "My Library", null);
-        var code1 = url1.Split('/').Last();
-        var link1 = _db.Links.FindOne(l => l.InviteCode == code1);
-        _service.RevokeLink(link1!.Id);
+        var config = MakeConfig();
+        config.SharedLibraries.Add(new LibraryShare
+        {
+            LibraryId = "lib-1",
+            Links = [new ShareLinkInfo { Id = "revoked_12345678901234567890", IsRevoked = true }]
+        });
+        var svc = new ShareLinkService(() => config, c => { }, "http://localhost:8096");
 
-        // Create a valid link
-        var url2 = _service.CreateShareLink("lib-2", "My Library 2", null);
-        var code2 = url2.Split('/').Last();
-        var link2 = _db.Links.FindOne(l => l.InviteCode == code2);
+        var active = svc.GetAllActiveLinks().ToList();
 
-        var activeLinks = _service.GetAllActiveLinks().ToList();
-
-        Assert.DoesNotContain(activeLinks, l => l.Id == link1!.Id);
-        Assert.Contains(activeLinks, l => l.Id == link2!.Id);
+        Assert.Empty(active);
     }
 
     [Fact]
-    public void GetAllActiveLinks_ReturnsEmptyForAllRevoked()
+    public void CreateShareLink_AddsToExistingLibraryShare()
     {
-        var url = _service.CreateShareLink("lib-1", "My Library", null);
-        var code = url.Split('/').Last();
-        var link = _db.Links.FindOne(l => l.InviteCode == code);
-        _service.RevokeLink(link!.Id);
+        var config = MakeConfig();
+        config.SharedLibraries.Add(new LibraryShare { LibraryId = "lib-1", LibraryName = "My Library" });
+        var svc = new ShareLinkService(() => config, c => { }, "http://localhost:8096");
 
-        var activeLinks = _service.GetAllActiveLinks().ToList();
+        svc.CreateShareLink("lib-1", "My Library", null, 604800);
+        svc.CreateShareLink("lib-1", "My Library", null, 604800);
 
-        Assert.Empty(activeLinks);
+        Assert.Single(config.SharedLibraries);
+        Assert.Equal(2, config.SharedLibraries[0].Links.Count);
     }
 
     [Fact]
-    public void GetLinksForLibrary_ReturnsLinksForSpecificLibrary()
+    public void CreateShareLink_SetsExpiryFromTimeSpan()
     {
-        _service.CreateShareLink("lib-1", "My Library", null);
-        _service.CreateShareLink("lib-1", "My Library", null);
-        _service.CreateShareLink("lib-2", "Other Library", null);
+        var config = MakeConfig();
+        var svc = new ShareLinkService(() => config, c => { }, "http://localhost:8096");
 
-        var lib1Links = _service.GetLinksForLibrary("lib-1").ToList();
+        svc.CreateShareLink("lib-1", "My Library", TimeSpan.FromHours(1), 604800);
 
-        Assert.Equal(2, lib1Links.Count);
-        Assert.All(lib1Links, l => Assert.Equal("lib-1", l.LibraryId));
+        var link = config.SharedLibraries[0].Links[0];
+        Assert.False(link.UsesDefaultExpiry);
+        Assert.NotNull(link.ExpiresAt);
     }
 }

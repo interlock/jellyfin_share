@@ -22,10 +22,10 @@ public class LibraryShare
 public class ShareLinkInfo
 {
     public string Id { get; set; } = string.Empty;
+    public string LibraryId { get; set; } = string.Empty;
     public string InviteUrl { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime? ExpiresAt { get; set; }
-    /// True if ExpiresAt is derived from the default; false if set per-link.
     public bool UsesDefaultExpiry { get; set; } = true;
     public bool IsRevoked { get; set; }
 }
@@ -34,7 +34,11 @@ public class IncomingShare
 {
     public string Id { get; set; } = string.Empty;
     public string PeerServerUrl { get; set; } = string.Empty;
+    public string? PeerShareLinkId { get; set; }
     public string LibraryName { get; set; } = string.Empty;
     public DateTime AddedAt { get; set; }
+    public DateTime SyncedAt { get; set; }
     public int ItemCount { get; set; }
+    /// Maps peer file paths to local .strm file paths
+    public Dictionary<string, string> FileMap { get; set; } = [];
 }

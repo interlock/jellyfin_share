@@ -1,6 +1,5 @@
 using System.IO;
 using Jellyfin.Plugin.MediaShare.Configuration;
-using Jellyfin.Plugin.MediaShare.Data;
 using Jellyfin.Plugin.MediaShare.Services;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
@@ -18,9 +17,6 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     public override string Name => "Media Share";
 
-    private readonly ShareDbContext _db;
-    private readonly string _dbPath;
-
     public Plugin(
         IServerApplicationHost serverHost,
         IApplicationPaths appPaths,
@@ -30,22 +26,31 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         ILoggerFactory loggerFactory)
         : base(appPaths, xml)
     {
-        var dataDir = Path.Combine(appPaths.PluginConfigurationsPath, "MediaShare");
+        var dataDir = Path.Combine(appPaths.PluginConfigurationsPath, Name);
         Directory.CreateDirectory(dataDir);
-        _dbPath = Path.Combine(dataDir, "mediashare.db");
-
-        _db = new ShareDbContext(_dbPath);
 
         var scheme = serverHost.ListenWithHttps ? "https" : "http";
         var port = serverHost.ListenWithHttps ? serverHost.HttpsPort : serverHost.HttpPort;
         var serverUrl = $"{scheme}://{serverHost.FriendlyName}:{port}";
 
-        LinkService = new ShareLinkService(_db, serverUrl);
-        FedService = new FederationService(_db, libraryManager, httpClientFactory, loggerFactory.CreateLogger<FederationService>());
+        LinkService = new ShareLinkService(
+            () => Configuration,
+            cfg => Configuration = cfg,
+            serverUrl);
+
+        FedService = new FederationService(
+            () => Configuration,
+            cfg => Configuration = cfg,
+            libraryManager,
+            httpClientFactory,
+            loggerFactory.CreateLogger<FederationService>());
+
     }
 
     public ShareLinkService LinkService { get; }
     public FederationService FedService { get; }
+
+    public void SetConfiguration(PluginConfiguration cfg) => Configuration = cfg;
 
     public IEnumerable<PluginPageInfo> GetPages()
     {
@@ -54,6 +59,9 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             new PluginPageInfo
             {
                 Name = Name,
+                EnableInMainMenu = true,
+                MenuSection = "server",
+                MenuIcon = "share",
                 EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.configPage.html"
             }
         ];

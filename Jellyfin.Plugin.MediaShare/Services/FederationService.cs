@@ -1,7 +1,5 @@
 using System.Net.Http.Json;
-using System.Text.Json;
-using Jellyfin.Plugin.MediaShare.Data;
-using Jellyfin.Plugin.MediaShare.Models;
+using Jellyfin.Plugin.MediaShare.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
@@ -9,91 +7,15 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.MediaShare.Services;
 
 public class FederationService(
-    ShareDbContext db,
+    Func<PluginConfiguration> getConfig,
+    Action<PluginConfiguration> saveConfig,
     ILibraryManager libraryManager,
     IHttpClientFactory httpClientFactory,
     ILogger<FederationService> logger)
 {
     private readonly HttpClient _http = httpClientFactory.CreateClient("Jellyfin.Plugin.MediaShare");
 
-    public async Task SyncIncomingShareAsync(string peerServerUrl, string shareLinkId)
-    {
-        try
-        {
-            var resp = await _http.GetAsync($"{peerServerUrl}/mediashare/share/{shareLinkId}/catalog");
-            if (!resp.IsSuccessStatusCode)
-            {
-                logger.LogWarning("Failed to fetch catalog from {Url}: {Status}", peerServerUrl, resp.StatusCode);
-                return;
-            }
-
-            var items = await resp.Content.ReadFromJsonAsync<List<MediaItem>>();
-            if (items is null) return;
-
-            var existing = db.Libraries.FindOne(l => l.PeerShareLinkId == shareLinkId);
-            if (existing is not null)
-            {
-                existing.SyncedAt = DateTime.UtcNow;
-                db.Libraries.Update(existing);
-            }
-
-            GenerateStrmFiles(shareLinkId, items);
-            _ = libraryManager.ValidateMediaLibrary(new Progress<double>(), CancellationToken.None);
-            logger.LogInformation("Synced {Count} items from peer {Url}", items.Count, peerServerUrl);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to sync catalog from {Url}", peerServerUrl);
-        }
-    }
-
-    public async Task AcceptInviteAsync(string inviteUrl)
-    {
-        var parts = ParseInviteUrl(inviteUrl);
-        if (!parts.HasValue) throw new InvalidOperationException("Invalid invite URL format");
-
-        var (peerServerUrl, code) = parts.Value;
-
-        var library = await FetchLibraryMetadataAsync(peerServerUrl, code);
-        if (library is null) throw new InvalidOperationException("Could not fetch library metadata from peer");
-
-        library.IsIncoming = true;
-        library.PeerServerUrl = peerServerUrl;
-        db.Libraries.Insert(library);
-
-        await SyncIncomingShareAsync(peerServerUrl, code);
-    }
-
-    public async Task TriggerSyncAsync()
-    {
-        var incoming = db.Libraries.Find(l => l.IsIncoming && !string.IsNullOrEmpty(l.PeerShareLinkId));
-        foreach (var lib in incoming)
-        {
-            if (!string.IsNullOrEmpty(lib.PeerServerUrl))
-                await SyncIncomingShareAsync(lib.PeerServerUrl, lib.PeerShareLinkId!);
-        }
-    }
-
-    private async Task<SharedLibrary?> FetchLibraryMetadataAsync(string peerServerUrl, string code)
-    {
-        var resp = await _http.GetAsync($"{peerServerUrl}/mediashare/share/{code}/catalog");
-        if (!resp.IsSuccessStatusCode) return null;
-
-        var items = await resp.Content.ReadFromJsonAsync<List<MediaItem>>();
-        if (items is null || items.Count == 0) return null;
-
-        var name = items[0].Title.Split('/')[0];
-        return new SharedLibrary
-        {
-            LibraryId = code,
-            LibraryName = $"Shared: {name}",
-            PeerShareLinkId = code,
-            PeerServerUrl = peerServerUrl,
-            IsIncoming = true
-        };
-    }
-
-    public List<MediaItem> BuildCatalogFromLibrary(string libraryId)
+    public List<Models.MediaItem> BuildCatalogFromLibrary(string libraryId)
     {
         if (!Guid.TryParse(libraryId, out var guid))
         {
@@ -108,29 +30,20 @@ public class FederationService(
             return [];
         }
 
-        return CollectMediaItems(folder, new());
-    }
-
-    private List<MediaItem> CollectMediaItems(Folder parent, List<MediaItem> catalog)
-    {
-        var query = new InternalItemsQuery { AncestorIds = [parent.Id] };
-        var items = libraryManager.GetItemList(query);
-
-        foreach (var item in items)
+        var catalog = new List<Models.MediaItem>();
+        var query = new InternalItemsQuery { AncestorIds = [folder.Id] };
+        foreach (var item in libraryManager.GetItemList(query))
         {
             if (item is Video video)
-            {
                 catalog.Add(ToMediaItem(video));
-            }
         }
-
         return catalog;
     }
 
-    private MediaItem ToMediaItem(Video video)
+    private static Models.MediaItem ToMediaItem(Video video)
     {
         var sources = video.GetMediaSources(false);
-        return new MediaItem
+        return new Models.MediaItem
         {
             Id = video.Id.ToString(),
             Title = video.Name,
@@ -138,7 +51,7 @@ public class FederationService(
             MediaType = video.MediaType.ToString(),
             PosterUrl = video.PrimaryImagePath,
             Overview = video.Overview,
-            Files = sources.Select(ms => new MediaFile
+            Files = sources.Select(ms => new Models.MediaFile
             {
                 Id = ms.Path,
                 Path = ms.Path,
@@ -147,43 +60,112 @@ public class FederationService(
         };
     }
 
-    private void GenerateStrmFiles(string shareLinkId, List<MediaItem> items)
+    public async Task TriggerSyncAsync()
     {
-        var root = GetShareRoot(shareLinkId);
+        var config = getConfig();
+        foreach (var incoming in config.IncomingShares)
+        {
+            if (string.IsNullOrEmpty(incoming.PeerServerUrl)) continue;
+            await SyncIncomingShareAsync(incoming, config);
+        }
+    }
+
+    private async Task SyncIncomingShareAsync(IncomingShare incoming, PluginConfiguration config)
+    {
+        try
+        {
+            var code = incoming.PeerShareLinkId ?? incoming.Id;
+            var resp = await _http.GetAsync($"{incoming.PeerServerUrl}/mediashare/share/{code}/catalog");
+            if (!resp.IsSuccessStatusCode) return;
+
+            var items = await resp.Content.ReadFromJsonAsync<List<Models.MediaItem>>();
+            if (items is null || items.Count == 0) return;
+
+            GenerateStrmFiles(incoming, items);
+            incoming.ItemCount = items.Count;
+            incoming.SyncedAt = DateTime.UtcNow;
+            saveConfig(config);
+            _ = libraryManager.ValidateMediaLibrary(new Progress<double>(), CancellationToken.None);
+            logger.LogInformation("Synced {Count} items from {Url}", items.Count, incoming.PeerServerUrl);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to sync from {Url}", incoming.PeerServerUrl);
+        }
+    }
+
+    public async Task AcceptInviteAsync(string inviteUrl)
+    {
+        var parts = ParseInviteUrl(inviteUrl);
+        if (!parts.HasValue) return;
+
+        var (peerServerUrl, code) = parts.Value;
+        var config = getConfig();
+        if (config.IncomingShares.Any(s => s.Id == code)) return;
+
+        var resp = await _http.GetAsync($"{peerServerUrl}/mediashare/share/{code}/catalog");
+        if (!resp.IsSuccessStatusCode) return;
+
+        var items = await resp.Content.ReadFromJsonAsync<List<Models.MediaItem>>();
+        var name = items?.FirstOrDefault()?.Title.Split('/')[0] ?? "Shared Library";
+
+        var incoming = new IncomingShare
+        {
+            Id = code,
+            PeerServerUrl = peerServerUrl,
+            PeerShareLinkId = code,
+            LibraryName = $"Shared: {name}",
+            AddedAt = DateTime.UtcNow,
+            ItemCount = items?.Count ?? 0
+        };
+        config.IncomingShares.Add(incoming);
+
+        if (items is not null)
+            GenerateStrmFiles(incoming, items);
+
+        saveConfig(config);
+        _ = libraryManager.ValidateMediaLibrary(new Progress<double>(), CancellationToken.None);
+    }
+
+    private void GenerateStrmFiles(IncomingShare incoming, List<Models.MediaItem> items)
+    {
+        var root = GetShareRoot(incoming.Id);
         Directory.CreateDirectory(root);
 
         foreach (var item in items)
         {
             foreach (var file in item.Files)
             {
+                var encodedId = $"{incoming.PeerServerUrl}::{file.Path}";
                 var strm = Path.Combine(root, $"{SanitizeFileName(item.Title)}.strm");
-                File.WriteAllText(strm, $"/mediashare/stream/{shareLinkId}/{Uri.EscapeDataString(file.Id)}");
+                File.WriteAllText(strm, $"/mediashare/stream/{incoming.Id}/{Uri.EscapeDataString(encodedId)}");
 
                 var nfo = Path.Combine(root, $"{SanitizeFileName(item.Title)}.nfo");
-                var nfoContent = $"""
+                File.WriteAllText(nfo, $"""
                     <?xml version="1.0" encoding="utf-8"?>
                     <movie>
                       <title>{System.Security.SecurityElement.Escape(item.Title)}</title>
                       <year>{item.Year ?? 0}</year>
                     </movie>
-                    """;
-                File.WriteAllText(nfo, nfoContent);
+                    """);
+
+                // Track .strm path for local streaming
+                incoming.FileMap[file.Path] = strm;
             }
         }
     }
 
-    private static string GetShareRoot(string shareLinkId) => Path.Combine(
+    private static string GetShareRoot(string shareId) => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Jellyfin.Plugin.MediaShare", "shared", shareLinkId);
+        "Jellyfin.Plugin.MediaShare", "shared", shareId);
 
     private static (string serverUrl, string code)? ParseInviteUrl(string url)
     {
         var uri = new Uri(url);
         var segments = uri.Segments;
-        if (segments.Length < 4) throw new InvalidOperationException("Invalid invite URL");
+        if (segments.Length < 4) return null;
         var code = segments[^1].TrimEnd('/');
-        var baseUrl = $"{uri.Scheme}://{uri.Host}:{uri.Port}";
-        return (baseUrl, code);
+        return ($"{uri.Scheme}://{uri.Host}:{uri.Port}", code);
     }
 
     private static string SanitizeFileName(string name)
