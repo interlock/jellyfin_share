@@ -7,6 +7,22 @@
     "guid": "613657e0-25b9-4d58-9f4d-1496726b0532",
     "versions": [
       {
+        "changelog": "## What's Changed\r\n* fix(plugin): pin Jellyfin packages to 10.11.0 to match server ABI by @interlock in https://github.com/interlock/jellyfin_share/pull/1\r\n\r\n## New Contributors\r\n* @interlock made their first contribution in https://github.com/interlock/jellyfin_share/pull/1\r\n\r\n**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.26...0.0.27",
+        "targetAbi": "10.11.0.0",
+        "version": "0.0.27",
+        "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.27/Jellyfin.Plugin.MediaShare_0.0.27.zip",
+        "checksum": "fcf5b9602205587dbb385edd98f50fcd",
+        "timestamp": "2026-04-20T00:46:23Z"
+      },
+      {
+        "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.25...0.0.26",
+        "targetAbi": "10.11.0.0",
+        "version": "0.0.26",
+        "sourceUrl": "https://github.com/interlock/jellyfin_share/releases/download/0.0.26/Jellyfin.Plugin.MediaShare_0.0.26.zip",
+        "checksum": "277a4526b41e3cfff350c4f7cbd98480",
+        "timestamp": "2026-04-19T23:53:21Z"
+      },
+      {
         "changelog": "**Full Changelog**: https://github.com/interlock/jellyfin_share/compare/0.0.24...0.0.25",
         "targetAbi": "10.11.0.0",
         "version": "0.0.25",
