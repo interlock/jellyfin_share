@@ -4,7 +4,6 @@ using Jellyfin.Plugin.MediaShare.Data;
 using Jellyfin.Plugin.MediaShare.Models;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.MediaShare.Services;
@@ -39,8 +38,7 @@ public class FederationService(
             }
 
             GenerateStrmFiles(shareLinkId, items);
-            libraryManager.CreateShortcut(GetShareRoot(shareLinkId), new MediaPathInfo());
-            libraryManager.QueueLibraryScan();
+            _ = libraryManager.ValidateMediaLibrary(new Progress<double>(), CancellationToken.None);
             logger.LogInformation("Synced {Count} items from peer {Url}", items.Count, peerServerUrl);
         }
         catch (Exception ex)
