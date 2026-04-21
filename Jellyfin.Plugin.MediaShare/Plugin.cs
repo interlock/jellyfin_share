@@ -58,8 +58,8 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         [
             new PluginPageInfo
             {
-                Name = Name,
-                // EnableInMainMenu = true,
+                Name = "mediashare",
+                EnableInMainMenu = true,
                 // MenuSection = "server",
                 // MenuIcon = "share",
                 EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.configPage.html"
